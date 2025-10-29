@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LINE MINI App — LIFF Demo</title>
+  <meta name="description" content="LINE MINI App demo to show user profile" />
+  <link rel="stylesheet" href="https://mokmoon.com/mini/css/mini.css" />
+  <style>
+    /* ปรับเล็กน้อยให้ปุ่มซ่อนเป็น default ตามที่คุณเขียนไว้ */
+    #btnLogIn, #btnLogOut { display: none; padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial; padding: 18px; max-width: 720px; margin: auto; }
+    img#pictureUrl { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; display:block; margin-bottom: 12px; }
+    p { margin: 6px 0; word-break: break-word; }
+    b { width: 120px; display:inline-block; }
+  </style>
+</head>
+<body>
+  <h2>LINE MINI App — Profile</h2>
+
+  <img id="pictureUrl" src="https://vos.line-scdn.net/imgs/apis/ic_mini.png" alt="avatar">
+  <p id="userId"><b>userId:</b> <span class="value"></span></p>
+  <p id="displayName"><b>displayName:</b> <span class="value"></span></p>
+  <p id="statusMessage"><b>statusMessage:</b> <span class="value"></span></p>
+  <p id="decodedIDToken"><b>email:</b> <span class="value"></span></p>
+
+  <button id="btnLogIn" onclick="liff.login();">Log In</button>
+  <button id="btnLogOut" onclick="liff.logout(); window.location.reload();">Log Out</button>
+
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <script>
+    // ---- Bind elements ----
+    const pictureUrl = document.querySelector("#pictureUrl");
+    const userIdEl = document.querySelector("#userId .value");
+    const displayNameEl = document.querySelector("#displayName .value");
+    const statusMessageEl = document.querySelector("#statusMessage .value");
+    const emailEl = document.querySelector("#decodedIDToken .value");
+    const btnLogIn = document.querySelector("#btnLogIn");
+    const btnLogOut = document.querySelector("#btnLogOut");
+
+    // ---- mobileCheck() (เก็บของเดิม แต่เรียบง่ายขึ้นเล็กน้อย) ----
+    function mobileCheck() {
+      try {
+        const ua = (navigator.userAgent || navigator.vendor || window.opera || "").toLowerCase();
+        // ตรวจสอบเบื้องต้นว่ามือถือหรือไม่ (adequate for our purpose)
+        return /iphone|ipod|ipad|android|mobile|silk|kindle|opera mini|blackberry|windows phone/.test(ua);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // ---- getUserProfile() ----
+    async function getUserProfile() {
+      try {
+        const profile = await liff.getProfile();
+        // แสดงรูป (มี fallback)
+        if (profile.pictureUrl) pictureUrl.src = profile.pictureUrl;
+        userIdEl.textContent = profile.userId || "";
+        displayNameEl.textContent = profile.displayName || "";
+        statusMessageEl.textContent = profile.statusMessage || "";
+        // decoded ID token (email) — guard เผื่อ null
+        const decoded = liff.getDecodedIDToken ? liff.getDecodedIDToken() : null;
+        emailEl.textContent = decoded && decoded.email ? decoded.email : "";
+      } catch (err) {
+        console.error("getUserProfile error:", err);
+        userIdEl.textContent = "(ไม่สามารถดึงโปรไฟล์ได้)";
+      }
+    }
+
+    // ---- main() — logic 3 ขั้น ตามที่คุณออกแบบ ----
+    (async function main() {
+      const liffId = "2008382645-lerVOwGM"; // <-- แทนที่ที่นี่ด้วย LIFF ID ของคุณ
+
+      // รอให้ SDK โหลด (liff object ปรากฎ)
+      if (!window.liff) {
+        console.error("LIFF SDK not loaded.");
+        return;
+      }
+
+      try {
+        // 5.1: ถ้าเปิดจาก LINE in-app client -> liff.init แบบปกติ แล้วดึงโปรไฟล์
+        if (liff.isInClient()) {
+          await liff.init({ liffId });
+          await getUserProfile();
+          // ปุ่ม logout อาจไม่จำเป็นใน in-client แต่แสดงไว้เผื่อ
+          btnLogOut.style.display = "block";
+          return;
+        }
+
+        // 5.2: ไม่ได้อยู่ใน LINE client แต่เป็นมือถือ -> เปิดผ่าน URL scheme เพื่อกระโดดไปแอป LINE (line://app/{liffId})
+        if (mobileCheck()) {
+          // พยายามเปิด scheme ของ LINE แล้วสั่งปิดหน้าต่างหลัง 5 วินาที
+          window.location.replace(`line://app/${liffId}`);
+          setTimeout(() => { try { window.close(); } catch (e) { /* ignore */ } }, 5000);
+          return;
+        }
+
+        // 5.3: Desktop / external browser -> init พร้อม withLoginOnExternalBrowser เพื่อใช้ login flow
+        await liff.init({ liffId, withLoginOnExternalBrowser: true });
+
+        if (liff.isLoggedIn && liff.isLoggedIn()) {
+          await getUserProfile();
+          btnLogOut.style.display = "inline-block";
+          return;
+        }
+
+        // ยังไม่ได้ login -> แสดงปุ่ม login
+        btnLogIn.style.display = "inline-block";
+
+      } catch (err) {
+        console.error("LIFF init / flow error:", err);
+        // แสดงปุ่ม login เป็น fallback เผื่อ liff.init ล้มเหลว
+        btnLogIn.style.display = "inline-block";
+      }
+    })();
+  </script>
+</body>
+</html>
