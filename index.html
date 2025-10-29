@@ -52,22 +52,49 @@
     }
 
     // ---- getUserProfile() ----
-    async function getUserProfile() {
-      try {
-        const profile = await liff.getProfile();
-        // แสดงรูป (มี fallback)
-        if (profile.pictureUrl) pictureUrl.src = profile.pictureUrl;
-        userIdEl.textContent = profile.userId || "";
-        displayNameEl.textContent = profile.displayName || "";
-        statusMessageEl.textContent = profile.statusMessage || "";
-        // decoded ID token (email) — guard เผื่อ null
-        const decoded = liff.getDecodedIDToken ? liff.getDecodedIDToken() : null;
-        emailEl.textContent = decoded && decoded.email ? decoded.email : "";
-      } catch (err) {
-        console.error("getUserProfile error:", err);
-        userIdEl.textContent = "(ไม่สามารถดึงโปรไฟล์ได้)";
+    // async function getUserProfile() {
+    //   try {
+    //     const profile = await liff.getProfile();
+    //     // แสดงรูป (มี fallback)
+    //     if (profile.pictureUrl) pictureUrl.src = profile.pictureUrl;
+    //     userIdEl.textContent = profile.userId || "";
+    //     displayNameEl.textContent = profile.displayName || "";
+    //     statusMessageEl.textContent = profile.statusMessage || "";
+    //     // decoded ID token (email) — guard เผื่อ null
+    //     const decoded = liff.getDecodedIDToken ? liff.getDecodedIDToken() : null;
+    //     emailEl.textContent = decoded && decoded.email ? decoded.email : "";
+    //   } catch (err) {
+    //     console.error("getUserProfile error:", err);
+    //     userIdEl.textContent = "(ไม่สามารถดึงโปรไฟล์ได้)";
+    //   }
+    // }
+
+      async function getUserProfile() {
+    try {
+      console.log("Requesting profile...");
+      const profile = await liff.getProfile();
+      if (profile.pictureUrl) pictureUrl.src = profile.pictureUrl;
+      userIdEl.textContent = profile.userId || "";
+      displayNameEl.textContent = profile.displayName || "";
+      statusMessageEl.textContent = profile.statusMessage || "";
+
+      // debug: show whole decoded ID token if any
+      const decoded = (typeof liff.getDecodedIDToken === "function") ? liff.getDecodedIDToken() : null;
+      console.log("Decoded ID token:", decoded);
+      if (decoded && decoded.email) {
+        emailEl.textContent = decoded.email;
+      } else {
+        emailEl.textContent = "(no email in ID token)";
+        // show login button so user can re-consent
+        btnLogIn.style.display = "inline-block";
       }
+    } catch (err) {
+      console.error("getUserProfile error:", err);
+      userIdEl.textContent = "(cannot fetch profile)";
+      emailEl.textContent = "(error)";
+      btnLogIn.style.display = "inline-block";
     }
+  }
 
     // ---- main() — logic 3 ขั้น ตามที่คุณออกแบบ ----
     (async function main() {
